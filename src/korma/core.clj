@@ -533,7 +533,7 @@
 
 (defn- default-fk-name [ent]
   (cond
-   (map? ent) (keyword (str (simple-table-name ent) "_id"))
+   (map? ent) (:pk ent)
    (var? ent) (recur @ent)
    :else      (throw (Exception. (str "Can't determine default fk for " ent)))))
 
@@ -756,8 +756,8 @@
                   (make-sub-query sub-ent body-fn)
                   (join query
                         table
-                        (= (raw (eng/prefix sub-ent sub-ent-key))
-                           (raw (eng/prefix (:ent query) ent-key))))))))
+                        (zipmap (map raw (eng/prefix sub-ent sub-ent-key))
+                                (map raw (eng/prefix (:ent query) ent-key))))))))
 
 (defn- with-many-to-many [{:keys [lfk rfk rpk join-table]} query ent body-fn]
   (let [pk (get-in query [:ent :pk])

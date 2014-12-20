@@ -77,7 +77,9 @@
              (string/join "." (map delimit-str parts))))))
 
 (defn prefix [ent field]
-  (let [field-name (field-identifier field)
+ (cond
+  (seq? field) (map (partial prefix ent) field)
+  :else(let [field-name (field-identifier field)
         not-already-prefixed? (and (keyword? field)
                                    (not (*bound-aliases* field))
                                    (= -1 (.indexOf field-name ".")))]
@@ -86,7 +88,7 @@
                     ent
                     (table-alias ent))]
         (str (table-identifier table) "." field-name))
-      field-name)))
+      field-name))))
 
 (defn try-prefix [v]
   (if (and (keyword? v)
@@ -219,7 +221,9 @@
 (defn pred-map [m]
   (if (and (map? m)
            (not (utils/special-map? m)))
-    (apply pred-and (doall (map pred-vec (sort-by (comp str key) m))))
+    (let [res (apply pred-and (doall (map pred-vec (sort-by (comp str key) m))))]
+      (println res)
+      res)
     m))
 
 (defn parse-where [form]
