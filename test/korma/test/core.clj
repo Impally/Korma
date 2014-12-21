@@ -204,7 +204,7 @@
 
 (deftest with-one
   (sql-only
-   (is (= "SELECT \"address\".\"state\", \"users\".\"name\" FROM \"users\" LEFT JOIN \"address\" ON \"address\".\"users_id\" = \"users\".\"id\""
+   (is (= "SELECT \"address\".\"state\", \"users\".\"name\" FROM \"users\" LEFT JOIN \"address\" ON (\"address\".\"users_id\" = \"users\".\"id\")"
           (select user2
                   (with address)
                   (fields :address.state :name))))))
@@ -272,12 +272,12 @@
   (sql-only
    (are [result query] (= result query)
 
-        "SELECT \"users\".*, \"address\".\"id\" FROM \"users\" LEFT JOIN \"address\" ON \"address\".\"users_id\" = \"users\".\"id\""
+        "SELECT \"users\".*, \"address\".\"id\" FROM \"users\" LEFT JOIN \"address\" ON (\"address\".\"users_id\" = \"users\".\"id\")"
         (select user2
                 (fields :*)
                 (with address (fields :id)))
 
-        "SELECT \"users\".*, \"address\".*, \"state\".* FROM (\"users\" LEFT JOIN \"address\" ON \"address\".\"users_id\" = \"users\".\"id\") LEFT JOIN \"state\" ON \"state\".\"id\" = \"address\".\"state_id\" WHERE (\"state\".\"state\" = ?) AND (\"address\".\"id\" > ?)"
+        "SELECT \"users\".*, \"address\".*, \"state\".* FROM (\"users\" LEFT JOIN \"address\" ON (\"address\".\"users_id\" = \"users\".\"id\")) LEFT JOIN \"state\" ON (\"state\".\"id\" = \"address\".\"state_id\") WHERE (\"state\".\"state\" = ?) AND (\"address\".\"id\" > ?)"
         (select user2
                 (fields :*)
                 (with address
@@ -387,13 +387,13 @@
        "SELECT \"state\".* FROM \"state\" WHERE EXISTS((SELECT \"address\".* FROM \"address\" WHERE ((\"address\".\"id\" > ?) AND \"address\".\"state_id\" = \"state\".\"id\")))"
        (sql-only
          (select state
-                 (where (exists (subselect address 
+                 (where (exists (subselect address
                                            (where (and {:id [> 5]} (= :state_id :state.id))))))))
 
        "SELECT \"state\".* FROM \"state\" WHERE (EXISTS((SELECT \"address\".* FROM \"address\" WHERE ((\"address\".\"id\" > ?) AND \"address\".\"state_id\" = \"state\".\"id\"))) AND NOT(EXISTS((SELECT \"address\".* FROM \"address\" WHERE ((\"address\".\"id\" < ?) OR \"address\".\"state_id\" <> \"state\".\"id\")))))"
        (sql-only
          (select state
-                 (where (and (exists (subselect address 
+                 (where (and (exists (subselect address
                                            (where (and {:id [> 5]} (= :state_id :state.id)))))
                              (not (exists (subselect address
                                            (where (or  {:id [< 10]} (not= :state_id :state.id))))))))))
@@ -401,8 +401,8 @@
        "SELECT \"state\".* FROM \"state\" WHERE EXISTS((SELECT \"address\".* FROM \"address\" WHERE ((\"address\".\"id\" > ?) AND NOT(EXISTS((SELECT \"users\".* FROM \"users\" WHERE \"address\".\"user_id\" = \"users\".\"id\"))))))"
        (sql-only
          (select state
-                 (where (exists (subselect address 
-                                           (where (and {:id [> 5]} 
+                 (where (exists (subselect address
+                                           (where (and {:id [> 5]}
                                                        (not (exists (subselect user2 (where (= :address.user_id :id))))))))))))
 
        "SELECT \"users\".* FROM \"users\", (SELECT \"users\".* FROM \"users\" WHERE (\"users\".\"age\" > ?)) AS \"u2\""
@@ -541,13 +541,13 @@
   (are [query result] (= query result)
        (sql-only
         (select author-with-db (with book-with-db)))
-       "SELECT \"other\".\"author\".*, \"korma\".\"book\".* FROM \"other\".\"author\" LEFT JOIN \"korma\".\"book\" ON \"korma\".\"book\".\"id\" = \"other\".\"author\".\"book_id\""))
+       "SELECT \"other\".\"author\".*, \"korma\".\"book\".* FROM \"other\".\"author\" LEFT JOIN \"korma\".\"book\" ON (\"korma\".\"book\".\"id\" = \"other\".\"author\".\"book_id\")"))
 
 (deftest schemaname-on-tablename
   (are [query result] (= query result)
        (sql-only
         (select author-with-schema (with book-with-schema)))
-       "SELECT \"korma\".\"otherschema\".\"author\".*, \"korma\".\"myschema\".\"book\".* FROM \"korma\".\"otherschema\".\"author\" LEFT JOIN \"korma\".\"myschema\".\"book\" ON \"korma\".\"myschema\".\"book\".\"id\" = \"korma\".\"otherschema\".\"author\".\"book_id\""))
+       "SELECT \"korma\".\"otherschema\".\"author\".*, \"korma\".\"myschema\".\"book\".* FROM \"korma\".\"otherschema\".\"author\" LEFT JOIN \"korma\".\"myschema\".\"book\" ON (\"korma\".\"myschema\".\"book\".\"id\" = \"korma\".\"otherschema\".\"author\".\"book_id\")"))
 
 
 ;;*****************************************************
@@ -736,14 +736,36 @@
 
 (deftest test-correct-delimiters-for-one-to-one-joins
   (testing "correct delimiters are used in belongs-to joins"
-    (is (= "SELECT `address`.*, `state`.* FROM `address` LEFT JOIN `state` ON `state`.`id` = `address`.`state_id` WHERE (`state`.`status` = ?) ORDER BY `address`.`id` ASC"
+    (is (= "SELECT `address`.*, `state`.* FROM `address` LEFT JOIN `state` ON (`state`.`id` = `address`.`state_id`) WHERE (`state`.`status` = ?) ORDER BY `address`.`id` ASC"
            (sql-only (select address-with-db
                              (with state-with-db
                                    (where {:status 1}))
                              (order :id))))))
   (testing "correct delimiters are used in has-one joins"
-    (is (= "SELECT `user`.*, `address`.* FROM `user` LEFT JOIN `address` ON `address`.`user_id` = `user`.`id` WHERE (`address`.`status` = ?) ORDER BY `user`.`id` ASC"
+    (is (= "SELECT `user`.*, `address`.* FROM `user` LEFT JOIN `address` ON (`address`.`user_id` = `user`.`id`) WHERE (`address`.`status` = ?) ORDER BY `user`.`id` ASC"
            (sql-only (select user-with-db
                              (with address-with-db
                                    (where {:status 1}))
                              (order :id)))))))
+
+
+;;; Test Composite Primary Keys
+(defdb composite-db (mysql {}))
+
+(declare composite-address-with-db composite-user-with-db)
+
+(defentity composite-address-with-db
+  (database composite-db)
+  (pk :state :street :zip)
+  (table :address))
+
+(defentity composite-user-with-db
+  (database composite-db)
+  (table :user)
+  (has-one composite-address-with-db))
+
+(deftest test-composite-primary-key
+  (testing "plain selects work"
+    (is (= "SELECT `user`.*, `address`.* FROM `user` LEFT JOIN `address` ON (`address`.`state` = `user`.`state` AND `address`.`street` = `user`.`street` AND `address`.`zip` = `user`.`zip`)"
+           (sql-only (select composite-user-with-db
+                             (with composite-address-with-db)))))))

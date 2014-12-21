@@ -79,16 +79,16 @@
 (defn prefix [ent field]
  (cond
   (seq? field) (map (partial prefix ent) field)
-  :else(let [field-name (field-identifier field)
-        not-already-prefixed? (and (keyword? field)
-                                   (not (*bound-aliases* field))
-                                   (= -1 (.indexOf field-name ".")))]
-    (if not-already-prefixed?
-      (let [table (if (string? ent)
-                    ent
-                    (table-alias ent))]
-        (str (table-identifier table) "." field-name))
-      field-name))))
+  :else (let [field-name (field-identifier field)
+              not-already-prefixed? (and (keyword? field)
+                                         (not (*bound-aliases* field))
+                                         (= -1 (.indexOf field-name ".")))]
+          (if not-already-prefixed?
+            (let [table (if (string? ent)
+                          ent
+                          (table-alias ent))]
+              (str (table-identifier table) "." field-name))
+            field-name))))
 
 (defn try-prefix [v]
   (if (and (keyword? v)

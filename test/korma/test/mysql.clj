@@ -40,7 +40,7 @@
           (select users-no-db-specified (aggregate (count :*) :cnt :id))))))
 
 (def mysql-uri
-  {:connection-uri "jdbc:mysql://localhost/?user=root"})
+  {:connection-uri "jdbc:mysql://localhost/?user=root&password=toor"})
 
 (defn- setup-korma-db []
   (jdbc/db-do-commands mysql-uri "CREATE DATABASE IF NOT EXISTS korma;"
@@ -52,7 +52,7 @@
 
 (deftest test-nested-transactions-work
   (setup-korma-db)
-  (defdb live-db-mysql (mysql {:db "korma" :user "root"}))
+  (defdb live-db-mysql (mysql {:db "korma" :user "root" :password "toor"}))
   (defentity users-live-mysql (database live-db-mysql))
 
   (transaction

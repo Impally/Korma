@@ -294,7 +294,7 @@
 (defn join* [query type table clause]
   (update-in query [:joins] conj [type table clause]))
 
-(defn add-joins 
+(defn add-joins
   ([query ent rel]
      (add-joins query ent rel :left))
   ([query ent rel type]
@@ -318,7 +318,7 @@
   ([query ent]
      `(join ~query :left ~ent))
   ([query type-or-table ent-or-clause]
-     `(if (entity? ~ent-or-clause) 
+     `(if (entity? ~ent-or-clause)
         (let [q# ~query
               e# ~ent-or-clause
               rel# (get-rel (:ent q#) e#)
@@ -533,7 +533,9 @@
 
 (defn- default-fk-name [ent]
   (cond
-   (map? ent) (:pk ent)
+   (and (map? ent)
+        (seq? (:pk ent))) (:pk ent)
+   (map? ent) (keyword (str (simple-table-name ent) "_id"))
    (var? ent) (recur @ent)
    :else      (throw (Exception. (str "Can't determine default fk for " ent)))))
 
@@ -647,9 +649,9 @@
       ent)))
 
 (defn pk
-  "Set the primary key used for an entity. :id by default."
-  [ent pk]
-  (assoc ent :pk (keyword pk)))
+  "Set the primary key used for an entity. "
+  [ent & pks]
+  (assoc ent :pk (map keyword pks)))
 
 (defn database
   "Set the database connection to be used for this entity."
@@ -748,6 +750,12 @@
                                                              (body-fn)
                                                              (where {sub-ent-key (get ent ent-key)})))))))))
 
+(defn raw-field-or-fields
+  [fieldsish]
+  (cond
+   (seq? fieldsish) (map raw fieldsish)
+   :else [(raw fieldsish)]))
+
 (defn- with-one-to-one-now [rel query sub-ent body-fn]
   (let [table (if (:alias rel) [(:table sub-ent) (:alias sub-ent)] (:table sub-ent))
         [ent-key sub-ent-key] (get-join-keys rel (:ent query) sub-ent)]
@@ -756,8 +764,8 @@
                   (make-sub-query sub-ent body-fn)
                   (join query
                         table
-                        (zipmap (map raw (eng/prefix sub-ent sub-ent-key))
-                                (map raw (eng/prefix (:ent query) ent-key))))))))
+                        (zipmap (raw-field-or-fields (eng/prefix sub-ent sub-ent-key))
+                                (raw-field-or-fields (eng/prefix (:ent query) ent-key))))))))
 
 (defn- with-many-to-many [{:keys [lfk rfk rpk join-table]} query ent body-fn]
   (let [pk (get-in query [:ent :pk])
