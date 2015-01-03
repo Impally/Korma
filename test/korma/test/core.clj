@@ -752,20 +752,30 @@
 ;;; Test Composite Primary Keys
 (defdb composite-db (mysql {}))
 
-(declare composite-address-with-db composite-user-with-db)
+(declare composite-item-with-db composite-auction-with-db composite-pc-with-db)
 
-(defentity composite-address-with-db
+(defentity composite-item-with-db
   (database composite-db)
-  (pk :state :street :zip)
-  (table :address))
+  (pk :item-id :context)
+  (table :item)
+  (has-many composite-auction-with-db))
 
-(defentity composite-user-with-db
+(defentity composite-pc-with-db
   (database composite-db)
-  (table :user)
-  (has-one composite-address-with-db))
+  (pk :cname :realm)
+  (table :pcharacter)
+  (has-many composite-auction-with-db))
+
+(defentity composite-auction-with-db
+  (database composite-db)
+  (pk :list-id)
+  (table :listing)
+  (belongs-to composite-pc-with-db)
+  (belongs-to composite-item-with-db))
 
 (deftest test-composite-primary-key
   (testing "plain selects work"
-    (is (= "SELECT `user`.*, `address`.* FROM `user` LEFT JOIN `address` ON (`address`.`state` = `user`.`state` AND `address`.`street` = `user`.`street` AND `address`.`zip` = `user`.`zip`)"
-           (sql-only (select composite-user-with-db
-                             (with composite-address-with-db)))))))
+    (is (= "SELECT `listing`.*, `pcharacter`.*, `item`.* FROM (`listing` LEFT JOIN `pcharacter` ON (`pcharacter`.`cname` = `listing`.`cname` AND `pcharacter`.`realm` = `listing`.`realm`)) LEFT JOIN `item` ON (`item`.`context` = `listing`.`context` AND `item`.`item-id` = `listing`.`item-id`)"
+           (sql-only (select composite-auction-with-db
+                             (with composite-pc-with-db)
+                             (with composite-item-with-db)))))))
