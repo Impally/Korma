@@ -483,14 +483,19 @@
      (= *exec-mode* :query) query
      (= *exec-mode* :dry-run) (do
                                 (println "dry run ::" sql "::" (vec params))
-                                (let [result-keys (conj (->> query :ent :rel vals
-                                                             (map deref)
-                                                             (filter (comp #{:belongs-to} :rel-type))
-                                                             (map :fk-key))
-                                                        (-> query :ent :pk))
+                                (let [foreign-keys (->> query :ent :rel vals
+                                                       (map deref)
+                                                       (filter (comp #{:belongs-to} :rel-type))
+                                                       (map :fk-key))
+                                      primary-keys (-> query :ent :pk)
+                                      result-keys (concat (if (seq? foreign-keys)
+                                                            foreign-keys
+                                                            (list foreign-keys))
+                                                          (if (seq? primary-keys)
+                                                            primary-keys
+                                                            (list primary-keys)))
                                       results (apply-posts query [(zipmap result-keys (repeat 1))])]
-                                  (first results)
-                                  results))
+                                  (doall results)))
      :else (let [results (db/do-query query)]
              (apply-transforms query (apply-posts query results))))))
 

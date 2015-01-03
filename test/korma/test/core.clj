@@ -780,7 +780,7 @@
                              (with composite-pc-with-db)
                              (with composite-item-with-db))))))
   (testing "select parent"
-    (is (= "dry run :: SELECT `pcharacter`.`cname`, `pcharacter`.realm` FROM `pcharacter` :: []
-dry run :: SELECT `listing`.* FROM `listing` WHERE ((`listing`.`cname`, `listing`.`realm`) = ?) :: [1]\n"
+    (is (= "dry run :: SELECT `pcharacter`.* FROM `pcharacter` :: []
+dry run :: SELECT `listing`.* FROM `listing` WHERE (`listing`.`cname` = ? AND `listing`.`realm` = ?) :: [1 1]\n"
            (dry-run (with-out-str (select composite-pc-with-db
                                           (with composite-auction-with-db))))))))
