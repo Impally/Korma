@@ -709,8 +709,13 @@
     ent))
 
 (defn- with-one-to-many [rel query ent body-fn]
-  (let [fk-key (:fk-key rel)
+  (let [fk-key (if (seq? (:fk-key rel))
+                 (:fk-key rel)
+                 (list (:fk-key rel)))
         pk (get-in query [:ent :pk])
+        pk-key (if (seq? pk)
+                 pk
+                 (list pk))
         table (keyword (eng/table-alias ent))
         ent (assoc-db-to-entity query ent)]
     (post-query query
@@ -718,7 +723,7 @@
                          #(assoc % table
                                  (select ent
                                          (body-fn)
-                                         (where {fk-key (get % pk)})))))))
+                                         (where (zipmap fk-key (map % pk-key)))))))))
 
 (defn- make-key-unique [->key m k n]
   (let [unique-key (if (= n 1) k (keyword (->key (str (name k) "_" n))))]

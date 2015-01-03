@@ -774,8 +774,13 @@
   (belongs-to composite-item-with-db))
 
 (deftest test-composite-primary-key
-  (testing "plain selects work"
+  (testing "select child"
     (is (= "SELECT `listing`.*, `pcharacter`.*, `item`.* FROM (`listing` LEFT JOIN `pcharacter` ON (`pcharacter`.`cname` = `listing`.`cname` AND `pcharacter`.`realm` = `listing`.`realm`)) LEFT JOIN `item` ON (`item`.`context` = `listing`.`context` AND `item`.`item-id` = `listing`.`item-id`)"
            (sql-only (select composite-auction-with-db
                              (with composite-pc-with-db)
-                             (with composite-item-with-db)))))))
+                             (with composite-item-with-db))))))
+  (testing "select parent"
+    (is (= "dry run :: SELECT `pcharacter`.`cname`, `pcharacter`.realm` FROM `pcharacter` :: []
+dry run :: SELECT `listing`.* FROM `listing` WHERE ((`listing`.`cname`, `listing`.`realm`) = ?) :: [1]\n"
+           (dry-run (with-out-str (select composite-pc-with-db
+                                          (with composite-auction-with-db))))))))
